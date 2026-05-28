@@ -1,0 +1,355 @@
+// ==========================================
+// CONFIGURATION: API KEYS & IDs
+// ==========================================
+const GEMINI_API_KEY = 'test';
+const MAPS_API_KEY = 'test';
+
+// Folder and Sheet IDs
+const SOURCE_FOLDER_ID = '10gyTbY_5OT6XrTgm5irkaB9rbNCXLzgu';
+const SHEET_ID = '1rdSWtwEQB8jBGCfU-G1tPWJMrQk9jZzmd5jA7N23Ghk';
+
+// Tab Names
+const TAB_DIRECTORY = 'Temple_Directory';
+const TAB_THEYYAMS = 'Theyyams';
+
+// ==========================================
+// MAIN AUTOMATION FUNCTION
+// ==========================================
+function processNewTheyyamPosters() {
+  const sourceFolder = DriveApp.getFolderById(SOURCE_FOLDER_ID);
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  
+  const directorySheet = ss.getSheetByName(TAB_DIRECTORY);
+  const theyyamsSheet = ss.getSheetByName(TAB_THEYYAMS);
+  
+  const files = sourceFolder.getFiles();
+  
+  // 1. Check if there are any files to process
+  if (!files.hasNext()) {
+    Logger.log("No new posters found.");
+    return;
+  }
+
+  // 2. Determine the Current "Season" for the Archive Folder
+  const todayDate = new Date();
+  const currentYear = todayDate.getFullYear();
+  const currentMonth = todayDate.getMonth(); 
+  let seasonFolderName = "";
+  
+  if (currentMonth >= 6) {
+    seasonFolderName = String(currentYear).slice(-2) + "_" + String(currentYear + 1).slice(-2);
+  } else {
+    seasonFolderName = String(currentYear - 1).slice(-2) + "_" + String(currentYear).slice(-2);
+  }
+
+  // 3. Locate or Create the Season Folder
+  let seasonFolder;
+  const folderIterator = sourceFolder.getFoldersByName(seasonFolderName);
+  if (folderIterator.hasNext()) {
+    seasonFolder = folderIterator.next();
+  } else {
+    seasonFolder = sourceFolder.createFolder(seasonFolderName);
+    Logger.log("Created new season folder: " + seasonFolderName);
+  }
+
+  // 4. Process Each File
+  while (files.hasNext()) {
+    const file = files.next();
+    
+    // SAFETY WRAPPER: Wrap the entire processing of ONE file in a try/catch
+    try {
+      const mimeType = file.getMimeType();
+      
+      // Ensure the file is an image
+      if (mimeType.startsWith('image/')) {
+        Logger.log("Processing file: " + file.getName());
+        
+        // Extract Data via Gemini
+        const extractedData = extractDataWithGemini(file);
+        
+        if (extractedData && extractedData.malayalam_temple_name) {
+          
+          // --- RELATIONAL DATABASE LOGIC (TAB 1: DIRECTORY) ---
+          const existingTemples = directorySheet.getRange("A:A").getValues().flat();
+          
+          if (!existingTemples.includes(extractedData.malayalam_temple_name)) {
+            Logger.log("New Temple Found! Adding to Directory: " + extractedData.malayalam_temple_name);
+            
+            // Fetch Link, Lat, and Lng
+            let mapData = getGoogleMapsData(extractedData.malayalam_temple_name + " " + extractedData.locality + " Kerala");
+            if (mapData.link === "Location not found on Maps") {
+               mapData = getGoogleMapsData(extractedData.english_temple_name + " " + extractedData.locality + " Kerala");
+            }
+            if (mapData.link === "Location not found on Maps") {
+               mapData.link = "NOT FOUND";
+               mapData.lat = "";
+               mapData.lng = "";
+            }
+
+            // Append to Directory: Malayalam | English | Locality | Phone | Map Link | Status | Lat | Lng
+            directorySheet.appendRow([
+              extractedData.malayalam_temple_name,
+              extractedData.english_temple_name,
+              extractedData.locality,
+              extractedData.phone_no,
+              mapData.link,
+              "⚠️ NEW - VERIFY",
+              mapData.lat,
+              mapData.lng
+            ]);
+          }
+
+          // --- DATA FORMATTING (SCHEDULE) ---
+          let formattedScheduleText = "";
+          if (extractedData.poster_schedule && extractedData.poster_schedule.length > 0) {
+             extractedData.poster_schedule.forEach(item => {
+                formattedScheduleText += `${item.date_time}:\n${item.malayalam_event} (${item.english_event})\n\n`;
+             });
+          } else {
+             formattedScheduleText = "Schedule details not clearly found.";
+          }
+          
+          // --- ARCHIVE & LINK GENERATION ---
+          file.moveTo(seasonFolder);
+          const posterUrl = file.getUrl();
+          
+          // --- MAIN LOG UPDATE (TAB 2: THEYYAMS) ---
+          const todayStr = Utilities.formatDate(todayDate, Session.getScriptTimeZone(), "yyyy-MM-dd");
+          
+          // Append to Theyyams: Date Added | Temple | DatesText | Schedule | Poster | Status | Tags | START | END
+          theyyamsSheet.appendRow([
+            todayStr,
+            extractedData.malayalam_temple_name,
+            extractedData.dates,
+            formattedScheduleText.trim(),
+            posterUrl,
+            "New",
+            extractedData.theyyam_tags || "",
+            "'" + (extractedData.start_date || ""), // Forces Plain Text
+            "'" + (extractedData.end_date || "")    // Forces Plain Text
+          ]);
+          
+          Logger.log("✅ Success: " + file.getName());
+
+          // Sleep to respect Free Tier limits
+          Utilities.sleep(6000); 
+          
+        } else {
+          Logger.log("⚠️ Skipping " + file.getName() + " due to API error.");
+        }
+      }
+    } catch (e) {
+      Logger.log("❌ CRITICAL ERROR on file " + file.getName() + ": " + e.message);
+    }
+  }
+}
+
+// ==========================================
+// HELPER FUNCTION: CALL GEMINI API
+// ==========================================
+function extractDataWithGemini(file) {
+  const base64Image = Utilities.base64Encode(file.getBlob().getBytes());
+  const mimeType = file.getMimeType();
+  const modelName = "gemini-2.5-flash"; 
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+  
+  const prompt = `Look at this Malayalam Theyyam poster. Extract and translate the information into a strict JSON object. 
+  Do not include markdown formatting or backticks.
+  
+  Use exactly these keys:
+  1. 'malayalam_temple_name': The name of the temple exactly as written in Malayalam.
+  2. 'english_temple_name': The English translation of the temple name.
+  3. 'locality': The village or town where the temple is located.
+  4. 'dates': The dates as written on the poster.
+  5. 'phone_no': Any contact phone numbers (return 'Not Provided' if none exist).
+  6. 'theyyam_tags': A comma-separated string of specific Theyyam deities mentioned.
+  7. 'start_date': The first date of the event in DD-MM-YYYY format (e.g., 24-04-2026). If the year is not on the poster, use 2026.
+  8. 'end_date': The last date of the event in DD-MM-YYYY format (e.g., 25-04-2026). If the year is not on the poster, use 2026.
+  9. 'poster_schedule': An array of objects representing the event schedule. Each object must have THREE keys: 
+     - 'date_time' (e.g., "April 21, 9:00 AM")
+     - 'malayalam_event' (the exact name/description of the event in Malayalam)
+     - 'english_event' (the English translation of that event).`;
+
+  const payload = {
+    "contents": [{
+      "parts": [
+        { "text": prompt },
+        { "inline_data": { "mime_type": mimeType, "data": base64Image } }
+      ]
+    }],
+    "generationConfig": { "response_mime_type": "application/json" }
+  };
+
+  const options = {
+    "method": "post",
+    "contentType": "application/json",
+    "payload": JSON.stringify(payload),
+    "muteHttpExceptions": true
+  };
+
+  let maxRetries = 3;
+  let attempt = 0;
+
+  while (attempt < maxRetries) {
+    try {
+      const response = UrlFetchApp.fetch(url, options);
+      const rawText = response.getContentText();
+      const jsonResponse = JSON.parse(rawText);
+      
+      if (jsonResponse.error) {
+        // NEW: Print the exact error message from Google!
+        Logger.log(`❌ Gemini Error (Attempt ${attempt + 1}): ${jsonResponse.error.message}`);
+        
+        attempt++;
+        Utilities.sleep(attempt * 30000);
+        continue;
+      }
+
+      if (jsonResponse.candidates && jsonResponse.candidates.length > 0) {
+        // Check if Gemini blocked the image for safety reasons
+        if (!jsonResponse.candidates[0].content) {
+             Logger.log(`⚠️ Blocked by Safety Filters. Reason: ${jsonResponse.candidates[0].finishReason}`);
+             return null;
+        }
+        
+        const resultText = jsonResponse.candidates[0].content.parts[0].text;
+        return JSON.parse(resultText);
+      }
+    } catch (e) {
+      // NEW: Print if the system crashes (like a timeout or bad JSON)
+      Logger.log(`⚠️ System Error (Attempt ${attempt + 1}): ${e.message}`);
+      attempt++;
+      Utilities.sleep(5000);
+    }
+  }
+  
+  Logger.log("❌ Failed to get data after 3 attempts. Skipping.");
+  return null;
+}
+// ==========================================
+// HELPER FUNCTION: GET MAPS LINK & COORDINATES
+// ==========================================
+function getGoogleMapsData(searchString) {
+  const encodedQuery = encodeURIComponent(searchString);
+  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodedQuery}&key=${MAPS_API_KEY}`;
+  
+  try {
+    const response = UrlFetchApp.fetch(url, {"muteHttpExceptions": true});
+    const jsonResponse = JSON.parse(response.getContentText());
+    
+    if (jsonResponse.results && jsonResponse.results.length > 0) {
+      const placeId = jsonResponse.results[0].place_id;
+      const lat = jsonResponse.results[0].geometry.location.lat;
+      const lng = jsonResponse.results[0].geometry.location.lng;
+      
+      return {
+        link: `https://www.google.com/maps/place/?q=place_id:$${encodedQuery}&query_place_id=${placeId}`,
+        lat: lat,
+        lng: lng
+      };
+    } else {
+      return { link: "Location not found on Maps", lat: "", lng: "" };
+    }
+  } catch (e) {
+    return { link: "Error finding location", lat: "", lng: "" };
+  }
+}
+
+// ==========================================
+// API ENDPOINT: SERVE DATA TO FRONTEND
+// ==========================================
+function doGet(e) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  
+  // 1. Handle Smart Search Query if present
+  if (e.parameter.q) {
+    const analysis = parseNaturalLanguageSearch(e.parameter.q);
+    return ContentService.createTextOutput(analysis).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // 2. Fetch Directory Data
+  const directorySheet = ss.getSheetByName(TAB_DIRECTORY);
+  const dirValues = directorySheet.getDataRange().getValues();
+  dirValues.shift(); 
+  
+  const directoryMap = {};
+  dirValues.forEach(row => {
+    directoryMap[row[0]] = { 
+      english_name: row[1],
+      locality: row[2],
+      phone_no: row[3],
+      map_link: row[4],
+      lat: row[6],
+      lng: row[7]
+    };
+  });
+
+  // 3. Fetch Theyyams Data
+  const theyyamsSheet = ss.getSheetByName(TAB_THEYYAMS);
+  const theyyamsValues = theyyamsSheet.getDataRange().getValues();
+  theyyamsValues.shift();
+  
+  // 4. Join Data
+  const publicData = [];
+  theyyamsValues.forEach(row => {
+    const malayalamName = row[1];
+    const directoryInfo = directoryMap[malayalamName] || {}; 
+    
+    publicData.push({
+      date_added: row[0],
+      malayalam_name: malayalamName,
+      dates: row[2],
+      schedule: row[3],
+      poster_link: row[4],
+      theyyam_tags: row[6] || "",
+      start_date: row[7], // Column H
+      end_date: row[8],   // Column I
+      english_name: directoryInfo.english_name || "Unknown Translation",
+      locality: directoryInfo.locality || "Unknown Locality",
+      phone_no: directoryInfo.phone_no || "Not Provided",
+      map_link: directoryInfo.map_link || "#",
+      lat: directoryInfo.lat || "",
+      lng: directoryInfo.lng || ""
+    });
+  });
+
+  return ContentService.createTextOutput(JSON.stringify(publicData))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ==========================================
+// HELPER FUNCTION: SMART SEARCH PARSER
+// ==========================================
+function parseNaturalLanguageSearch(userQuery) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+  
+  const systemPrompt = `You are a search assistant for a Theyyam calendar. 
+  Extract the following search parameters from the user's query and return ONLY a JSON object.
+  - "theyyam_name" (The name of the deity)
+  - "location" (The town or village)
+  - "date_offset" (Number: 0 for today, 1 for tomorrow, 2 for day after, -1 if not mentioned)
+  - "is_nearby" (Boolean: true if they use words like 'near me', 'around me', 'close to me')
+
+  Query: "${userQuery}"
+  JSON Output:`;
+
+  const payload = {
+    "contents": [{ "parts": [{ "text": systemPrompt }] }],
+    "generationConfig": { "response_mime_type": "application/json" }
+  };
+
+  const options = {
+    "method": "post",
+    "contentType": "application/json",
+    "payload": JSON.stringify(payload),
+    "muteHttpExceptions": true
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const result = JSON.parse(response.getContentText());
+    return result.candidates[0].content.parts[0].text;
+  } catch (e) {
+    return JSON.stringify({ error: "API Busy" });
+  }
+}
