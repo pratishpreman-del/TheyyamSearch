@@ -2,7 +2,7 @@ backend:
   name: git-gateway
   branch: main # Make sure this matches your GitHub branch (sometimes it's 'master')
 
-media_folder: "images/uploads" # Where your drag-and-drop images will be saved
+media_folder: "website/images/uploads" # Where your drag-and-drop images will be saved
 public_folder: "/images/uploads" # How the website will find those images
 
 collections:
