@@ -1,6 +1,6 @@
 backend:
   name: git-gateway
-  branch: TheyyamSearch # Make sure this matches your GitHub branch (sometimes it's 'master')
+  branch: main # Make sure this matches your GitHub branch (sometimes it's 'master')
 
 media_folder: "images/uploads" # Where your drag-and-drop images will be saved
 public_folder: "/images/uploads" # How the website will find those images
