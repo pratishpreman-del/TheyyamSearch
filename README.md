@@ -1,2 +1,0 @@
-# TheyyamSearch
-Theyyam search portal
