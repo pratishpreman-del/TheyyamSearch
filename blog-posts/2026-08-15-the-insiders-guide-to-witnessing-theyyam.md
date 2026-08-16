@@ -55,6 +55,8 @@ It is about sharing the North Kerala we rediscovered when we came home.
 
 ## Seeing Beyond the Performance
 
+![](/images/uploads/blogbody.png)
+
 The most common misunderstanding visitors have about Theyyam is an easy one to make.
 
 They think it is a performance.
@@ -128,8 +130,6 @@ First feel.
 Then ask.
 
 Then understand a little more.
-
-![]()
 
 ## It Takes a Village
 
@@ -268,8 +268,6 @@ This is the part visitors can easily miss if they are still thinking about the p
 The performance may be what catches your attention.
 
 The blessing shows you why it matters.
-
-![]()
 
 ## Arrive as a Guest, Enter with Respect
 
@@ -414,8 +412,6 @@ It is kept alive by ordinary people doing extraordinary things together, year af
 And that isn't only Theyyam.
 
 That is North Kerala.
-
-![]()
 
 ## A Little More Than a Night
 
