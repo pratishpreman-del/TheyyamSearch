@@ -1,7 +1,7 @@
 ---
 title: The Insider's Guide to Witnessing Theyyam
 date: 2026-08-15T18:18:00.000+05:30
-thumbnail: /images/uploads/gopr0064.jpg
+thumbnail: /images/uploads/blog-hero.png
 ---
 Dinner is over, but the night is only just beginning.
 
@@ -129,7 +129,7 @@ Then ask.
 
 Then understand a little more.
 
-![](/images/uploads/screenshot-2026-08-16-122457.png)
+![]()
 
 ## It Takes a Village
 
@@ -269,7 +269,7 @@ The performance may be what catches your attention.
 
 The blessing shows you why it matters.
 
-![](/images/uploads/screenshot-2026-08-16-122307.png)
+![]()
 
 ## Arrive as a Guest, Enter with Respect
 
@@ -415,7 +415,7 @@ And that isn't only Theyyam.
 
 That is North Kerala.
 
-![](/images/uploads/screenshot-2026-08-16-121712.png)
+![]()
 
 ## A Little More Than a Night
 
