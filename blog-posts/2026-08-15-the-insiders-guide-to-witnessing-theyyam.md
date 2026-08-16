@@ -129,6 +129,8 @@ Then ask.
 
 Then understand a little more.
 
+![](/images/uploads/screenshot-2026-08-16-122457.png)
+
 ## It Takes a Village
 
 A Theyyam night doesn't begin when the drums start.
@@ -266,6 +268,8 @@ This is the part visitors can easily miss if they are still thinking about the p
 The performance may be what catches your attention.
 
 The blessing shows you why it matters.
+
+![](/images/uploads/screenshot-2026-08-16-122307.png)
 
 ## Arrive as a Guest, Enter with Respect
 
@@ -410,6 +414,8 @@ It is kept alive by ordinary people doing extraordinary things together, year af
 And that isn't only Theyyam.
 
 That is North Kerala.
+
+![](/images/uploads/screenshot-2026-08-16-121712.png)
 
 ## A Little More Than a Night
 
