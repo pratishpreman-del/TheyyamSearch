@@ -1,7 +1,7 @@
 ---
 title: The Insider's Guide to Witnessing Theyyam
 date: 2026-08-15T18:18:00.000+05:30
-thumbnail: /images/uploads/blog-hero.png
+thumbnail: /images/uploads/blog-hero1.png
 ---
 Dinner is over, but the night is only just beginning.
 
