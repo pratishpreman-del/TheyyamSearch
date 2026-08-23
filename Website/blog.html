@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog - We The Explorers</title>
+    <!-- Script to translate Markdown into HTML -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #FAFAF7;
+            color: #2C2C2C;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+        .blog-container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px 40px;
+            background: #FFFFFF;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+        .hero-image {
+            width: 100%;
+            max-height: 450px;
+            object-fit: cover;
+            border-radius: 12px;
+            margin-bottom: 25px;
+        }
+        .blog-title {
+            color: #8B3A3A;
+            font-size: 2.2rem;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .blog-date {
+            color: #707070;
+            font-size: 0.95rem;
+            font-weight: bold;
+            border-bottom: 1px solid #E2E2D9;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .blog-body img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Floating Navigation Menu -->
+    <nav style="background-color: #FAFAF7; padding: 15px; text-align: center; border-bottom: 1px solid #E2E2D9; position: sticky; top: 0; z-index: 1000; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);">
+        <a href="/" style="margin-right: 25px; text-decoration: none; color: #8B3A3A; font-weight: 800; font-size: 1.1rem;">HOME</a>
+        <a href="/blog-list.html" style="text-decoration: none; color: #8B3A3A; font-weight: 800; font-size: 1.1rem;">STORIES</a>
+    </nav>
+
+    <!-- Content Wrapper -->
+    <div class="blog-container" id="blog-content">
+        <p style="text-align: center; color: #707070;">Loading story...</p>
+    </div>
+
+    <!-- Script to fetch and render the Markdown file -->
+    <script>
+        async function loadPost() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const postId = urlParams.get('post');
+
+            if (!postId) {
+                document.getElementById('blog-content').innerHTML = "<h2>Post not found!</h2><p>Please select a story from the <a href='/blog-list.html'>STORIES</a> page.</p>";
+                return;
+            }
+
+            try {
+                // Fetch the markdown file from the blog-posts folder
+                const response = await fetch('/blog-posts/' + postId + '.md');
+                if (!response.ok) throw new Error('File not found');
+                
+                const text = await response.text();
+                
+                // Separate the frontmatter (settings) from the markdown text
+                const regex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
+                const match = text.match(regex);
+                
+                let title = "Untitled", date = "", thumbnail = "", markdownBody = text;
+                
+                if (match) {
+                    const frontmatter = match[1];
+                    markdownBody = match[2];
+                    
+                    const titleMatch = frontmatter.match(/title:\s*"?([^"\n]+)"?/);
+                    if (titleMatch) title = titleMatch[1];
+                    
+                    const dateMatch = frontmatter.match(/date:\s*"?([^"\n]+)"?/);
+                    if (dateMatch) date = dateMatch[1];
+                    
+                    const thumbMatch = frontmatter.match(/thumbnail:\s*"?([^"\n]+)"?/);
+                    if (thumbMatch) thumbnail = thumbMatch[1];
+                }
+                
+                let htmlContent = "";
+                
+                // Add the Hero Image if one was uploaded in the CMS
+                if (thumbnail) {
+                    htmlContent += `<img src="${thumbnail}" class="hero-image" alt="Hero Image for ${title}">`;
+                }
+                
+                htmlContent += `<h1 class="blog-title">${title}</h1>`;
+                if (date) htmlContent += `<div class="blog-date">📅 Published on ${date.substring(0, 10)}</div>`;
+                
+                // Convert Markdown to HTML and display
+                htmlContent += `<div class="blog-body">${marked.parse(markdownBody)}</div>`;
+                document.getElementById('blog-content').innerHTML = htmlContent;
+                
+            } catch (error) {
+                document.getElementById('blog-content').innerHTML = "<h2>Story could not be loaded.</h2>";
+                console.error("Error fetching post:", error);
+            }
+        }
+        
+        loadPost();
+    </script>
+</body>
+</html>
