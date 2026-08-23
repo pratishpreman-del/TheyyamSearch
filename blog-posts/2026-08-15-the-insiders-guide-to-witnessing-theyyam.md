@@ -133,6 +133,8 @@ Then understand a little more.
 
 ## It Takes a Village
 
+![](/images/uploads/2.png)
+
 A Theyyam night doesn't begin when the drums start.
 
 The preparation begins much earlier.
@@ -270,6 +272,8 @@ The performance may be what catches your attention.
 The blessing shows you why it matters.
 
 ## Arrive as a Guest, Enter with Respect
+
+![](/images/uploads/3.png)
 
 Before we take our guests to witness a Theyyam, we usually have a short conversation.
 
