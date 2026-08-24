@@ -8,7 +8,7 @@ public_folder: "/images/uploads" # How the website will find those images
 collections:
   - name: "blog"
     label: "Travel Blog"
-    folder: "blog-posts" # The CMS will automatically create this folder to save your articles
+    folder: "Website/blog-posts" # The CMS will automatically create this folder to save your articles
     create: true
     slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
     fields:
