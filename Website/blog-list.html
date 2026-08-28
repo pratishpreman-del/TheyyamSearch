@@ -18,6 +18,7 @@
             margin: 40px auto;
             padding: 20px;
         }
+        /* Updated story-card for Flexbox layout */
         .story-card {
             background: #FFFFFF;
             border: 1px solid #E2E2D9;
@@ -26,7 +27,9 @@
             margin-bottom: 20px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
             text-decoration: none;
-            display: block;
+            display: flex;
+            align-items: center;
+            gap: 25px;
             color: inherit;
             transition: transform 0.2s, border-color 0.2s;
         }
@@ -35,11 +38,35 @@
             border-color: #8B3A3A;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
         }
+        /* New styling for the thumbnail image */
+        .story-thumbnail {
+            width: 150px;
+            height: 110px;
+            object-fit: cover;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+        .story-info {
+            display: flex;
+            flex-direction: column;
+        }
         .story-title {
             color: #8B3A3A;
             font-size: 1.5rem;
             font-weight: 800;
             margin: 0 0 8px 0;
+        }
+        /* Mobile styling: Stack image on top of text */
+        @media (max-width: 600px) {
+            .story-card {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            .story-thumbnail {
+                width: 100%;
+                height: 200px;
+            }
         }
     </style>
 </head>
@@ -52,21 +79,21 @@
     </nav>
 
     <div class="list-container">
-        <h1 style="color: #8B3A3A; text-align: center; margin-bottom: 30px; font-weight: 900; letter-spacing: 1px;">LATEST EXPERIENCES</h1>
+        <h1 style="color: #8B3A3A; text-align: center; margin-bottom: 10px; font-weight: 900; letter-spacing: 1px;">Stories From North Kerala</h1>
+	<h2 style="color: #8B3A3A; text-align: center; margin-bottom: 30px; font-weight: 500; letter-spacing: 1px;">People. Places. Stories.</h2>
         <div id="stories-list">
             <p style="text-align: center; color: #707070;">Loading latest stories...</p>
         </div>
     </div>
 
-    <!-- Script to fetch the list of stories directly from your GitHub folder -->
+    <!-- Script to fetch stories and their thumbnails -->
     <script>
-        // ⚠️ REPLACE THESE TWO LINES WITH YOUR GITHUB DETAILS ⚠️
-        const githubUsername = "pratishpreman-del"; // Example: "pratish-explorer"
-        const githubRepo = "TheyyamSearch";           // Example: "kannur-website"
+        // Your exact GitHub details
+        const githubUsername = "pratishpreman-del"; 
+        const githubRepo = "TheyyamSearch";           
         
         async function fetchStories() {
             try {
-                // This asks GitHub for a list of all files inside your blog-posts folder
                 const response = await fetch(`https://api.github.com/repos/${githubUsername}/${githubRepo}/contents/Website/blog-posts`);
                 if (!response.ok) throw new Error('Could not fetch posts folder');
                 
@@ -74,26 +101,59 @@
                 let htmlContent = "";
                 
                 const markdownFiles = files.filter(file => file.name.endsWith('.md'));
-                markdownFiles.reverse(); // Show newest dates first
+                markdownFiles.reverse(); 
                 
                 if (markdownFiles.length === 0) {
                     htmlContent = "<p style='text-align:center;'>No stories published yet. Check back soon!</p>";
                 } else {
-                    markdownFiles.forEach(file => {
-                        // Extract the filename to create the link
+                    // Loop through each file to peek inside and find the thumbnail
+                    for (const file of markdownFiles) {
                         const slug = file.name.replace('.md', '');
                         
-                        // Clean up the CMS name (2026-06-13-exploring-kannur -> EXPLORING KANNUR)
-                        const cleanName = slug.split('-').slice(3).join(' ').toUpperCase();
-                        const dateStr = slug.split('-').slice(0, 3).join('-');
+                        // Default fallbacks based on filename
+                        let cleanName = slug.split('-').slice(3).join(' ').toUpperCase();
+                        let dateStr = slug.split('-').slice(0, 3).join('-');
+                        let thumbnail = "";
+
+                        try {
+                            // Fetch the actual markdown text from your local server / Netlify
+                            const postResponse = await fetch('/blog-posts/' + file.name);
+                            const text = await postResponse.text();
+                            
+                            // Extract the settings block at the top of the Markdown file
+                            const regex = /^---\n([\s\S]*?)\n---/;
+                            const match = text.match(regex);
+                            
+                            if (match) {
+                                const frontmatter = match[1];
+                                
+                                // Find exact title, date, and thumbnail
+                                const titleMatch = frontmatter.match(/title:\s*"?([^"\n]+)"?/);
+                                if (titleMatch) cleanName = titleMatch[1];
+                                
+                                const dateMatch = frontmatter.match(/date:\s*"?([^"\n]+)"?/);
+                                if (dateMatch) dateStr = dateMatch[1].substring(0, 10);
+                                
+                                const thumbMatch = frontmatter.match(/thumbnail:\s*"?([^"\n]+)"?/);
+                                if (thumbMatch) thumbnail = thumbMatch[1];
+                            }
+                        } catch (e) {
+                            console.error("Could not fetch post details for", file.name);
+                        }
+
+                        // Generate the image block only if a thumbnail exists in the CMS
+                        let imageHtml = thumbnail ? `<img src="${thumbnail}" class="story-thumbnail" alt="${cleanName}">` : '';
 
                         htmlContent += `
                             <a href="/blog.html?post=${slug}" class="story-card">
-                                <h2 class="story-title">${cleanName || "Read Story"}</h2>
-                                <span style="color: #707070; font-size: 0.9rem; font-weight: 600;">📅 ${dateStr}</span>
+                                ${imageHtml}
+                                <div class="story-info">
+                                    <h2 class="story-title">${cleanName || "Read Story"}</h2>
+                                    <span style="color: #707070; font-size: 0.9rem; font-weight: 600;">📅 ${dateStr}</span>
+                                </div>
                             </a>
                         `;
-                    });
+                    }
                 }
                 
                 document.getElementById('stories-list').innerHTML = htmlContent;
