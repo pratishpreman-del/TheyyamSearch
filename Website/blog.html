@@ -49,6 +49,34 @@
             border-radius: 8px;
             margin: 20px 0;
         }
+        /* TABLE STYLING FOR BLOG POSTS */
+        .blog-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            font-size: 0.95rem;
+            background-color: #FFFFFF;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+        .blog-body th, .blog-body td {
+            border: 1px solid #E2E2D9;
+            padding: 14px;
+            text-align: left;
+        }
+        .blog-body th {
+            background-color: #F9F9F7;
+            color: #8B3A3A;
+            font-weight: 800;
+        }
+        .blog-body tr:nth-child(even) {
+            background-color: #FAFAF7;
+        }
+        /* Make table scrollable on small phone screens */
+        .blog-body table {
+            display: block;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
